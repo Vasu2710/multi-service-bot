@@ -4,10 +4,14 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Duration;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class EmailService {
@@ -33,5 +37,31 @@ public class EmailService {
 
         // Send the email
         javaMailSender.send(message);
+    }
+    public void scheduleEmail(List<String> recipients, String subject, String body, int timesPerDay, int intervalInMinutes) {
+        // Create a scheduler for handling scheduling
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.initialize();
+
+        // Calculate interval for each email
+        long intervalMillis = Duration.ofMinutes(intervalInMinutes).toMillis();
+
+        // Schedule emails with proper delay between them
+        for (int i = 0; i < timesPerDay; i++) {
+            // Calculate the delay before each email (staggered by interval)
+            long delayMillis = intervalMillis * i;
+
+            // Create the email task
+            Runnable emailTask = () -> {
+                try {
+                    sendEmail(recipients, subject, body);
+                } catch (MessagingException e) {
+                    e.printStackTrace();
+                }
+            };
+
+            // Schedule the email task at the calculated delay
+            scheduler.schedule(emailTask, new Date(System.currentTimeMillis() + delayMillis));
+        }
     }
 }
